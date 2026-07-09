@@ -9,8 +9,8 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "InterviewAI",
-  description: "Practice technical interviews with AI.",
+  title: "Interview-AI | AI Interview Platform",
+  description: "AI-powered interview practice made by Raihan Developer platform built with Next.js, TypeScript, MongoDB, NextAuth, and Gemini AI. Practice technical interviews with AI-generated questions, voice answers, detailed feedback, scoring, and interview history..",
 };
 
 export default function RootLayout({
