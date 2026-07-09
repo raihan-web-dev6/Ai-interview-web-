@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import cloudinary from "@/lib/cloudinary";
-
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/legacy/build/pdf.worker.mjs",
-  import.meta.url
-).toString();
+import PDFParser from "pdf2json";
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,43 +33,57 @@ export async function POST(req: NextRequest) {
     }
 
     const bytes = await file.arrayBuffer();
-
     const buffer = Buffer.from(bytes);
 
     // Upload PDF to Cloudinary
-    const uploadResult = await new Promise<any>((resolve, reject) => {
+    const uploadResult: any = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
           folder: "InterviewAI/Resumes",
           resource_type: "raw",
         },
         (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
+          if (error) return reject(error);
+
+          resolve(result);
         }
       );
 
       stream.end(buffer);
     });
 
-    // Extract PDF text
-    const pdf = await pdfjsLib.getDocument({
-      data: new Uint8Array(buffer),
-    }).promise;
+    // Parse PDF
+    const resumeText: string = await new Promise((resolve, reject) => {
+      const pdfParser = new PDFParser();
 
-    let resumeText = "";
+      pdfParser.on("pdfParser_dataError", (errData: any) => {
+        reject(errData.parserError);
+      });
 
-    for (let page = 1; page <= pdf.numPages; page++) {
-      const currentPage = await pdf.getPage(page);
+      pdfParser.on("pdfParser_dataReady", (pdfData: any) => {
+        try {
+          let text = "";
 
-      const content = await currentPage.getTextContent();
+          pdfData.Pages.forEach((page: any) => {
+            page.Texts.forEach((item: any) => {
+              item.R.forEach((run: any) => {
+                text += decodeURIComponent(run.T) + " ";
+              });
 
-      const pageText = content.items
-        .map((item: any) => ("str" in item ? item.str : ""))
-        .join(" ");
+              text += "\n";
+            });
 
-      resumeText += pageText + "\n";
-    }
+            text += "\n";
+          });
+
+          resolve(text);
+        } catch (err) {
+          reject(err);
+        }
+      });
+
+      pdfParser.parseBuffer(buffer);
+    });
 
     return NextResponse.json({
       success: true,
