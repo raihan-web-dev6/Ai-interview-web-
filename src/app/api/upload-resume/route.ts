@@ -4,11 +4,48 @@ import PDFParser from "pdf2json";
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("========== CLOUDINARY DEBUG ==========");
+
     console.log({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       api_key: process.env.CLOUDINARY_API_KEY,
       api_secret_exists: !!process.env.CLOUDINARY_API_SECRET,
     });
+
+    // -------------------------------
+    // Test Cloudinary FIRST
+    // -------------------------------
+
+    try {
+      const testUpload = await cloudinary.uploader.upload(
+        "data:text/plain;base64,SGVsbG8gQ2xvdWRpbmFyeQ==",
+        {
+          folder: "InterviewAI/Test",
+          resource_type: "auto",
+        }
+      );
+
+      console.log("TEST UPLOAD SUCCESS");
+      console.log(testUpload.secure_url);
+    } catch (err) {
+      console.error("TEST UPLOAD FAILED");
+      console.dir(err, { depth: null });
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Cloudinary test upload failed",
+          error: err,
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    // -------------------------------
+    // Read uploaded PDF
+    // -------------------------------
 
     const formData = await req.formData();
 
@@ -20,7 +57,9 @@ export async function POST(req: NextRequest) {
           success: false,
           message: "Resume is required",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
@@ -30,14 +69,19 @@ export async function POST(req: NextRequest) {
           success: false,
           message: "Only PDF files are allowed",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload PDF to Cloudinary
+    // -------------------------------
+    // Upload PDF
+    // -------------------------------
+
     const uploadResult: any = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
@@ -48,6 +92,8 @@ export async function POST(req: NextRequest) {
           overwrite: false,
         },
         (error, result) => {
+          console.log("UPLOAD CALLBACK");
+
           console.log("Cloudinary Error:", error);
           console.log("Cloudinary Result:", result);
 
@@ -60,7 +106,10 @@ export async function POST(req: NextRequest) {
       stream.end(buffer);
     });
 
+    // -------------------------------
     // Parse PDF
+    // -------------------------------
+
     const resumeText: string = await new Promise((resolve, reject) => {
       const pdfParser = new PDFParser();
 
@@ -99,12 +148,14 @@ export async function POST(req: NextRequest) {
       resumeText,
     });
   } catch (error) {
+    console.error("FINAL ERROR");
     console.dir(error, { depth: null });
 
     return NextResponse.json(
       {
         success: false,
         message: "Failed to upload resume",
+        error,
       },
       {
         status: 500,
