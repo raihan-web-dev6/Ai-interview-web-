@@ -4,6 +4,12 @@ import PDFParser from "pdf2json";
 
 export async function POST(req: NextRequest) {
   try {
+    console.log({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret_exists: !!process.env.CLOUDINARY_API_SECRET,
+    });
+
     const formData = await req.formData();
 
     const file = formData.get("resume") as File | null;
@@ -14,9 +20,7 @@ export async function POST(req: NextRequest) {
           success: false,
           message: "Resume is required",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -26,9 +30,7 @@ export async function POST(req: NextRequest) {
           success: false,
           message: "Only PDF files are allowed",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -40,9 +42,15 @@ export async function POST(req: NextRequest) {
       const stream = cloudinary.uploader.upload_stream(
         {
           folder: "InterviewAI/Resumes",
-          resource_type: "raw",
+          resource_type: "auto",
+          use_filename: true,
+          unique_filename: true,
+          overwrite: false,
         },
         (error, result) => {
+          console.log("Cloudinary Error:", error);
+          console.log("Cloudinary Result:", result);
+
           if (error) return reject(error);
 
           resolve(result);
@@ -91,7 +99,7 @@ export async function POST(req: NextRequest) {
       resumeText,
     });
   } catch (error) {
-    console.error(error);
+    console.dir(error, { depth: null });
 
     return NextResponse.json(
       {
