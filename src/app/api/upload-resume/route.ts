@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     console.log({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret_exists: !!process.env.CLOUDINARY_API_SECRET,
+      api_secret_exists: process.env.CLOUDINARY_API_SECRET,
     });
 
     // -------------------------------
@@ -124,10 +124,16 @@ export async function POST(req: NextRequest) {
           pdfData.Pages.forEach((page: any) => {
             page.Texts.forEach((item: any) => {
               item.R.forEach((run: any) => {
-                text += decodeURIComponent(run.T) + " ";
-              });
+  try {
+    text += decodeURIComponent(run.T) + " ";
+  } catch {
+    // Some PDFs contain malformed encoded text.
+    // If decoding fails, use the raw text instead.
+    text += run.T + " ";
+  }
+});
 
-              text += "\n";
+text += "\n";
             });
 
             text += "\n";
